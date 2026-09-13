@@ -1,1 +1,12 @@
-export const createOverdueAlertDto = (overrides = {}) => ({ id: 1, device_id: 1, plan_id: 1, alert_level: "LOW", alert_reason: "alert reason 1", handled_by: "handled by 1", handled_at: "2026-06-11T09:00:00Z", status: "DUE_SOON", ...overrides });
+import type { OverdueAlert } from "../models/OverdueAlert";
+
+export const createOverdueAlertDto = (overrides: Partial<OverdueAlert> = {}): Omit<OverdueAlert, "id"> => ({
+  device_id: 0,
+  plan_id: 0,
+  alert_level: "MEDIUM",
+  alert_reason: "",
+  handled_by: null,
+  handled_at: null,
+  status: "OPEN",
+  ...overrides
+});

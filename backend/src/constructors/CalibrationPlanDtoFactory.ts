@@ -1,1 +1,12 @@
-export const createCalibrationPlanDto = (overrides = {}) => ({ id: 1, device_id: 1, planned_date: "2026-06-11T09:00:00Z", plan_type: "DUE_SOON", priority: "priority 1", status: "DUE_SOON", assigned_vendor_id: 1, created_by: "created by 1", ...overrides });
+import type { CalibrationPlan } from "../models/CalibrationPlan";
+
+export const createCalibrationPlanDto = (overrides: Partial<CalibrationPlan> = {}): Omit<CalibrationPlan, "id"> => ({
+  device_id: 0,
+  planned_date: new Date().toISOString(),
+  plan_type: "PERIODIC",
+  priority: "MEDIUM",
+  status: "PLANNED",
+  assigned_vendor_id: null,
+  created_by: "system",
+  ...overrides
+});

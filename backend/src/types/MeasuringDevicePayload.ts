@@ -1,1 +1,8 @@
-export type MeasuringDevicePayload = Record<string, unknown>;
+export interface MeasuringDevicePayload {
+  device_code?: string;
+  name?: string;
+  device_type?: string;
+  accuracy_level?: string;
+  owner_dept?: string;
+  calibration_cycle_days?: number;
+}

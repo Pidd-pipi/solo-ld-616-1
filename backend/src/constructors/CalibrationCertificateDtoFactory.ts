@@ -1,1 +1,12 @@
-export const createCalibrationCertificateDto = (overrides = {}) => ({ id: 1, device_id: 1, plan_id: 1, certificate_no: "certificate no 1", result_status: "DUE_SOON", valid_until: "valid until 1", file_path: "file path 1", issued_by: "issued by 1", ...overrides });
+import type { CalibrationCertificate } from "../models/CalibrationCertificate";
+
+export const createCalibrationCertificateDto = (overrides: Partial<CalibrationCertificate> = {}): Omit<CalibrationCertificate, "id"> => ({
+  device_id: 0,
+  plan_id: null,
+  certificate_no: "",
+  result_status: "PASS",
+  valid_until: "",
+  file_path: "",
+  issued_by: "",
+  ...overrides
+});

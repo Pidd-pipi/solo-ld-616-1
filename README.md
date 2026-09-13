@@ -12,7 +12,22 @@ cp .env.example .env && docker compose up -d
 
 后端健康检查：<http://localhost:21116/health>
 
-后端健康检查：<http://localhost:21116/health>
+核心联动接口（同时挂载短路径 `/api/plans`、`/api/certificates`、`/api/alerts`）：
+
+```bash
+# 指派校准机构（重复指派返回 409 DUPLICATE_ASSIGNMENT）
+curl -X POST http://localhost:21116/api/plans/1/assign -H 'Content-Type: application/json' -d '{"vendor_id":1}'
+
+# 登记校准证书（跨设备返回 409 CERT_DEVICE_MISMATCH；结果同步设备状态并生成/关闭预警）
+curl -X POST http://localhost:21116/api/certificates -H 'Content-Type: application/json' \
+  -d '{"device_id":1,"plan_id":1,"certificate_no":"CERT-2026-0001","result_status":"PASS","valid_until":"2027-09-13"}'
+
+# 查询超期预警（OPEN 状态）
+curl http://localhost:21116/api/alerts/overdue
+
+# 关闭预警（重复关闭返回 409 INVALID_ALERT_TRANSITION）
+curl -X POST http://localhost:21116/api/alerts/1/close
+```
 
 
 ## 本地开发方式
@@ -54,9 +69,16 @@ backend/src/routes, controllers, services, models, repositories, middlewares, co
 
 ## 枚举/常量出现位置清单
 
-- DeviceCalibrationStatus: constants/DeviceCalibrationStatus、types/DeviceCalibrationStatus、constructors、logTemplates、errorMessages、筛选器、展示组件/控制器均有引用。
-- PlanStatus: constants/PlanStatus、types/PlanStatus、constructors、logTemplates、errorMessages、筛选器、展示组件/控制器均有引用。
-- CertificateResult: constants/CertificateResult、types/CertificateResult、constructors、logTemplates、errorMessages、筛选器、展示组件/控制器均有引用。
+- DeviceCalibrationStatus: constants/DeviceCalibrationStatus、models/MeasuringDevice、constructors/MeasuringDeviceDtoFactory、logTemplates、errorMessages、services（指派置 CALIBRATING、证书结果置 VALID/OVERDUE）、控制器均有引用。
+- PlanStatus: constants/PlanStatus、models/CalibrationPlan、constructors/CalibrationPlanDtoFactory、logTemplates、errorMessages、services（PLANNED→ASSIGNED→CERT_UPLOADED 流转校验）、控制器均有引用。
+- CertificateResult: constants/CertificateResult、models/CalibrationCertificate、constructors/CalibrationCertificateDtoFactory、logTemplates、errorMessages、services（PASS/LIMITED_PASS 关闭预警，FAIL/NEED_REPAIR 生成预警）、控制器均有引用。
+- AlertStatus: constants/AlertStatus、models/OverdueAlert、constructors/OverdueAlertDtoFactory、services（OPEN→CLOSED 流转校验）、控制器均有引用。
+
+## 业务联动规则
+
+- 计划指派：仅 `PLANNED` 可指派；`ASSIGNED`/`IN_PROGRESS` 再指派返回 `409 DUPLICATE_ASSIGNMENT`，其余状态返回 `409 INVALID_PLAN_TRANSITION`；指派成功后设备置 `CALIBRATING`。
+- 证书登记：证书编号重复返回 `409 DUPLICATE_CERTIFICATE_NO`；`valid_until` 早于当前时间返回 `409 CERT_EXPIRED`；`valid_until` 不是真实存在的日历日期（纯日期与带时间部分的 ISO 格式均逐分量严格校验，如 `2027-02-30T00:00:00Z`）返回 `400 VALIDATION_FAILED`；证书 `device_id` 与计划 `device_id` 不一致返回 `409 CERT_DEVICE_MISMATCH`；仅 `ASSIGNED`/`IN_PROGRESS` 计划可登记证书，否则 `409 INVALID_PLAN_TRANSITION`；以上校验全部在状态变更前完成，被拒绝的请求不会改变设备、计划和预警状态；登记后计划置 `CERT_UPLOADED`，`PASS`/`LIMITED_PASS` 置设备 `VALID` 并关闭该设备全部 OPEN 预警，`FAIL`/`NEED_REPAIR` 置设备 `OVERDUE` 且该设备无 OPEN 预警时自动生成 HIGH 预警。
+- 超期预警：`GET /api/alerts/overdue` 返回全部 OPEN 预警；`POST /api/alerts/:id/close` 仅允许关闭 OPEN 预警，重复关闭返回 `409 INVALID_ALERT_TRANSITION`。
 
 ## 为什么会牵一发动全身
 
